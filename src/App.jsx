@@ -1,7 +1,7 @@
 // App.jsx
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Layout from './components/Layout';
+import Layout from './components/layout/index';
 
 const App = () => {
   const location = useLocation();
