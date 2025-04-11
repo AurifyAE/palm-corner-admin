@@ -399,7 +399,7 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
                     </label>
                     <input
                       type="text"
-                      value={formData.colors[0].colorName}
+                      value={formData.colors[0].colorName.toUpperCase()}
                       onChange={(e) =>
                         handleColorChange("colorName", e.target.value)
                       }

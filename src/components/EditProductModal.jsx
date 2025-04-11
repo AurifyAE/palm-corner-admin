@@ -502,7 +502,7 @@ const EditProductModal = ({
                       <label className="block mb-2">Color Name</label>
                       <input
                         type="text"
-                        value={editingColor?.colorName || ""}
+                        value={editingColor?.colorName.toUpperCase() || ""}
                         onChange={(e) =>
                           setEditingColor({
                             ...editingColor,
