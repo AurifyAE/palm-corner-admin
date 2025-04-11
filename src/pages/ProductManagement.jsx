@@ -17,6 +17,7 @@ function ProductManagement() {
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchProducts = async (page, limit) => {
     setIsLoading(true);
@@ -35,20 +36,7 @@ function ProductManagement() {
 
       // Since API doesn't paginate, store all products and slice manually
       setAllProducts(productData);
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedProducts = productData.slice(startIndex, endIndex);
-      setProducts(paginatedProducts);
-      setTotalPages(Math.max(1, Math.ceil(totalItems / limit)));
-
-      console.log(
-        "Manually Paginated:",
-        paginatedProducts.length,
-        "from",
-        startIndex,
-        "to",
-        endIndex
-      );
+      applySearchAndPagination(productData, searchTerm, page, limit);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast.error("Failed to load products");
@@ -58,6 +46,35 @@ function ProductManagement() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const applySearchAndPagination = (productData, search, page, limit) => {
+    // Filter products based on search term
+    const filteredProducts = search 
+      ? productData.filter(product => 
+          product.title.toLowerCase().includes(search.toLowerCase()) ||
+          product.sku.toLowerCase().includes(search.toLowerCase()) ||
+          (product.category && product.category.name && 
+            product.category.name.toLowerCase().includes(search.toLowerCase()))
+        )
+      : productData;
+    
+    const totalFilteredItems = filteredProducts.length;
+    
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+    
+    setProducts(paginatedProducts);
+    setTotalPages(Math.max(1, Math.ceil(totalFilteredItems / limit)));
+    
+    console.log(
+      "Applied Search and Pagination:",
+      "Search Term:", search,
+      "Filtered Count:", totalFilteredItems,
+      "Page Products:", paginatedProducts.length
+    );
   };
 
   const fetchCategories = async () => {
@@ -77,6 +94,15 @@ function ProductManagement() {
   useEffect(() => {
     fetchCategories();
   }, []);
+  
+  // Handle search term changes
+  useEffect(() => {
+    if (allProducts.length > 0) {
+      // Reset to first page when searching
+      applySearchAndPagination(allProducts, searchTerm, 1, itemsPerPage);
+      setCurrentPage(1);
+    }
+  }, [searchTerm]);
 
   const handleProductAdded = () => {
     fetchProducts(currentPage, itemsPerPage);
@@ -106,6 +132,10 @@ function ProductManagement() {
     setCurrentPage(1);
   };
 
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
     <div className="bg-gradient-to-r from-[#E9FAFF] to-[#EEF3F9] min-h-screen">
       <Toaster
@@ -126,13 +156,31 @@ function ProductManagement() {
       <Header title={title} description={description} />
 
       <div className="px-16">
-        <div className="mb-4 flex justify-start items-center">
+        <div className="mb-4 flex justify-between items-center">
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Add Product
           </button>
+          
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="px-4 py-2 w-64 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         <ProductTable
@@ -145,6 +193,7 @@ function ProductManagement() {
           onItemsPerPageChange={handleItemsPerPageChange}
           isLoading={isLoading}
           onDeleteProduct={handleDeleteProduct}
+          searchTerm={searchTerm}
         />
 
         {showAddModal && (
@@ -169,6 +218,7 @@ const ProductTable = ({
   onItemsPerPageChange,
   isLoading,
   onDeleteProduct,
+  searchTerm
 }) => {
   const [expandedRow, setExpandedRow] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -201,14 +251,30 @@ const ProductTable = ({
   const toggleRow = (productId) => {
     setExpandedRow(expandedRow === productId ? null : productId);
   };
+  
+  // Get the total number of filtered results
+  const filteredResultsCount = products.length > 0 && totalPages > 0 
+    ? (totalPages - 1) * itemsPerPage + products.length
+    : 0;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-bold mb-6">Product List</h2>
+      
+      {searchTerm && (
+        <div className="mb-4 text-sm text-gray-600">
+          {filteredResultsCount === 0 
+            ? "No results found" 
+            : `Found ${filteredResultsCount} results for "${searchTerm}"`}
+        </div>
+      )}
+      
       {isLoading ? (
         <div className="text-center py-4">Loading products...</div>
       ) : products.length === 0 ? (
-        <div className="text-center py-4">No products available.</div>
+        <div className="text-center py-4">
+          {searchTerm ? `No products matching "${searchTerm}" found.` : "No products available."}
+        </div>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -356,8 +422,9 @@ const ProductTable = ({
 
           <div className="mt-4 flex justify-between items-center">
             <div>
-              Showing {products.length} of {totalPages * itemsPerPage} products
-              (Page {currentPage} of {totalPages})
+              Showing {products.length} of {filteredResultsCount} products
+              {searchTerm && ` matching "${searchTerm}"`}
+              {` (Page ${currentPage} of ${totalPages})`}
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex space-x-2">
