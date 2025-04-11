@@ -1,5 +1,4 @@
-// AddProductModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import axiosInstance from "../axios/axiosInstance";
 
@@ -9,7 +8,6 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
     description: "",
     sku: "",
     category: "",
-    price: '',
     stock: true,
     isActive: true,
     specifications: [{ key: "", value: "" }],
@@ -24,6 +22,64 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingSkus, setExistingSkus] = useState([]);
+
+  // Fetch existing SKUs on component mount
+  useEffect(() => {
+    const fetchExistingSkus = async () => {
+      try {
+        const response = await axiosInstance.get('/products/skus');
+        if (response.data && Array.isArray(response.data.skus)) {
+          setExistingSkus(response.data.skus);
+        }
+      } catch (error) {
+        console.error("Error fetching existing SKUs:", error);
+      }
+    };
+    
+    fetchExistingSkus();
+  }, []);
+
+  // Function to generate a random 3-digit number
+  const generateRandomNumber = () => {
+    // Generate a random number between 100 and 999
+    return Math.floor(Math.random() * 900) + 100;
+  };
+
+  // Generate SKU when title changes
+  useEffect(() => {
+    if (formData.title) {
+      generateSkuFromTitle(formData.title);
+    }
+  }, [formData.title]);
+
+  // Function to generate SKU from title
+  const generateSkuFromTitle = (title) => {
+    const skuPrefix = "SKU";
+    
+    // Remove spaces and take first 3 letters
+    const titlePart = title
+      .replace(/\s+/g, '') // Remove all whitespace
+      .substring(0, 3)     // Take first 3 letters
+      .toUpperCase();      // Convert to uppercase
+    
+    // Generate random number for SKU suffix (100-999)
+    const randomNum = generateRandomNumber();
+    
+    const generatedSku = `${skuPrefix}${titlePart}${randomNum}`;
+    
+    setFormData(prevData => ({
+      ...prevData,
+      sku: generatedSku
+    }));
+  };
+
+  // Regenerate SKU if needed (can be called manually)
+  const regenerateSku = () => {
+    if (formData.title) {
+      generateSkuFromTitle(formData.title);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +105,6 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
       formPayload.append("stock", formData.stock.toString());
       formPayload.append("isActive", formData.isActive.toString());
       formPayload.append("isDefault", "true");
-      formPayload.append("price", formData.price || "0");
 
       // Add color data
       const color = formData.colors[0];
@@ -90,7 +145,17 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
       if (error.response) {
         const errorMessage =
           error.response.data?.message || "Server error occurred";
-        toast.error(`Failed to add product: ${errorMessage}`);
+          
+        // If the error is due to duplicate SKU, regenerate it
+        if (error.response.status === 409 || 
+            errorMessage.toLowerCase().includes("duplicate") || 
+            errorMessage.toLowerCase().includes("already exists") ||
+            errorMessage.toLowerCase().includes("sku")) {
+          toast.error("SKU already exists. Generating a new one...");
+          regenerateSku();
+        } else {
+          toast.error(`Failed to add product: ${errorMessage}`);
+        }
       } else if (error.request) {
         toast.error("No response from server. Check your network connection.");
       } else {
@@ -189,16 +254,30 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
                 <label className="block text-sm font-medium mb-2">
                   SKU <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.sku}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sku: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                  required
-                  disabled={isSubmitting}
-                />
+                <div className="flex">
+                  <input
+                    type="text"
+                    value={formData.sku}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sku: e.target.value })
+                    }
+                    className="w-full p-2 border rounded-l"
+                    required
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    onClick={regenerateSku}
+                    className="bg-blue-500 text-white px-3 rounded-r hover:bg-blue-600 disabled:opacity-50"
+                    disabled={isSubmitting || !formData.title}
+                    title="Generate new SKU"
+                  >
+                    🔄
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Format: SKU[FIRST3LETTERS][RANDOM]. Click 🔄 to generate a new random number.
+                </p>
               </div>
 
               <div>
@@ -223,23 +302,6 @@ const AddProductModal = ({ categories, onClose, onProductAdded }) => {
                 </select>
               </div>
               
-              {/* <div>
-                <label className="block text-sm font-medium mb-2">
-                  Price
-                </label>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                  disabled={isSubmitting}
-                  min="0"
-                  step="0.01"
-                />
-              </div> */}
-
               <div className="flex items-center space-x-4">
                 <label className="flex items-center">
                   <input
