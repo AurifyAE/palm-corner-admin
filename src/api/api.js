@@ -33,3 +33,10 @@ export const addProduct = () => {
 
 // Delete Product
 export const deleteProduct = (productId) => axiosInstance.delete(`/products/${productId}`);
+
+// Remove Image from Color
+export const removeImageFromColor = (productId, colorId, imageUrl) => {
+    return axiosInstance.delete(`/products/${productId}/colors/${colorId}/image`, {
+        data: { imageUrl }, // Pass the image URL in the request body
+    });
+};

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import axiosInstance from "../axios/axiosInstance";
+import { removeImageFromColor as removeImageAPI } from "../api/api";
+
 
 const EditProductModal = ({
   productId,
@@ -24,6 +26,32 @@ const EditProductModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [colorImages, setColorImages] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+console.log("editingColor", editingColor?._id);
+console.log("productId", productId);
+
+const removeImageFromColor = async (imgUrl) => {
+  console.log("removeImageFromColor", imgUrl);
+
+  const loadingToast = toast.loading("Removing image...");
+  try {
+    // Use the API function from api.js
+    await removeImageAPI(productId, editingColor?._id, imgUrl);
+
+    toast.dismiss(loadingToast);
+    toast.success("Image removed successfully!");
+
+    // Update the local state to reflect the change
+    setEditingColor((prev) => ({
+      ...prev,
+      images: prev.images.filter((img) => img.url !== imgUrl),
+    }));
+  } catch (error) {
+    toast.dismiss(loadingToast);
+    console.error("Error removing image:", error);
+    toast.error(error.response?.data?.message || "Failed to remove image");
+  }
+};
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -550,6 +578,13 @@ const EditProductModal = ({
                               alt={`Color preview ${index}`}
                               className="w-16 h-16 object-cover rounded"
                             />
+                             <button
+                              type="button"
+                              className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 text-xs"
+                              onClick={()=> removeImageFromColor(img.url)}
+                            >
+                              ×
+                            </button>
                           </div>
                         ))}
 
