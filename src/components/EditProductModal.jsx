@@ -116,18 +116,23 @@ const EditProductModal = ({
       const formPayload = new FormData();
       formPayload.append("colorName", colorData.colorName);
       formPayload.append("hexCode", colorData.hexCode);
-
-      // Append images
+  
+      // Append existing images
+      colorData.images.forEach((img) => {
+        formPayload.append("existingImages", JSON.stringify(img));
+      });
+  
+      // Append new images
       colorImages.forEach((img) => {
         formPayload.append("image", img.file);
       });
-
+  
       const response = await axiosInstance.put(
         `/products/${productId}/colors/${colorData._id}`,
         formPayload,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
-
+  
       toast.dismiss(loadingToast);
       toast.success("Color updated successfully!");
       setColorImages([]);

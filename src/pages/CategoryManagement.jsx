@@ -7,7 +7,7 @@ import { FiEdit, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 function CategoryManagement() {
   const title = "Category Management";
   const description = "Add, Edit or Delete Your Categories";
-  
+  console.log("API URL:", import.meta.env.VITE_API_URL);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   
